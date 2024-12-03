@@ -11,11 +11,19 @@ namespace TokenPay.Helper
         private readonly string _botToken;
         private readonly long _userId;
         private readonly IConfiguration _configuration;
+        private readonly FlurlClient client;
         public TelegramBot(IConfiguration configuration)
         {
             _botToken = configuration.GetValue<string>("Telegram:BotToken")!;
             _userId = configuration.GetValue<long>("Telegram:AdminUserId");
             this._configuration = configuration;
+             var WebProxy = configuration.GetValue<string>("WebProxy");
+            client = new FlurlClient();
+            client.Settings.Timeout = TimeSpan.FromSeconds(5);
+            if (!string.IsNullOrEmpty(WebProxy))
+            {
+                client.Settings.HttpClientFactory = new ProxyHttpClientFactory(WebProxy);
+            }
         }
         public static TelegramBotInfo BotInfo = null!;
         public async Task<TelegramResult<TelegramBotInfo>?> GetMeAsync(string? TelegramApiHost = null)
@@ -30,6 +38,7 @@ namespace TokenPay.Helper
             var request = ApiHost
                     .WithTimeout(5)
                     .AppendPathSegment($"bot{_botToken}/getMe")
+                    .WithClient(client)
                     .WithTimeout(10);
             var result = await request.GetJsonAsync<TelegramResult<TelegramBotInfo>>();
             Log.Logger.Information("机器人启动成功！我是{@result}。", result.Result.FirstName);
@@ -49,6 +58,7 @@ namespace TokenPay.Helper
             var request = ApiHost
                     .WithTimeout(5)
                     .AppendPathSegment($"bot{_botToken}/sendMessage")
+                    .WithClient(client)
                     .SetQueryParams(new
                     {
                         chat_id = _userId,
